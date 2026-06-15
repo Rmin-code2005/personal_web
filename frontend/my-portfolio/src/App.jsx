@@ -1,28 +1,19 @@
 import { useEffect, useState } from "react";
 import "./index.css";
 
-const API = "http://localhost:8000/api";
-const MEDIA_BASE = "http://localhost:8000";
-
+const API = import.meta.env.VITE_API_URL;
+const MEDIA_BASE = import.meta.env.VITE_API_URL;
 function resolveImageUrl(url) {
   if (!url) return null;
   if (/^https?:\/\//i.test(url)) return url;
   return `${MEDIA_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
-const CATEGORY_LABELS = {
-  backend: "Backend",
-  frontend: "Frontend",
-  devops: "DevOps",
-  other: "Other",
-};
-
-const CATEGORY_ORDER = ["backend", "frontend", "devops", "other"];
-
 export default function App() {
   const [profile, setProfile] = useState(null);
   const [projects, setProjects] = useState([]);
   const [skills, setSkills] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [education, setEducation] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,12 +26,14 @@ export default function App() {
       fetch(`${API}/projects/`).then((r) => r.json()),
       fetch(`${API}/skills/`).then((r) => r.json()),
       fetch(`${API}/education/`).then((r) => r.json()),
+      fetch(`${API}/categories/`).then((r) => r.json()),
     ])
-      .then(([p, pr, s, e]) => {
+      .then(([p, pr, s, e, cats]) => {
         setProfile(p);
         setProjects(sortProjects(pr));
         setSkills(sortSkills(s));
         setEducation(sortEducation(e));
+        setCategories(cats);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -97,7 +90,7 @@ $ ${API}`}
           filter={filter}
           setFilter={setFilter}
         />
-        <SkillsSection skills={skills} />
+        <SkillsSection skills={skills} categories={categories} />
         <EducationSection education={education} />
         <ContactSection status={contactStatus} setStatus={setContactStatus} profile={profile} />
       </main>
@@ -129,9 +122,10 @@ function sortEducation(list) {
 function groupSkills(skills) {
   const groups = {};
   for (const s of skills) {
-    const cat = s.category || "other";
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push(s);
+    // category الان یه object هست: { id: 1, name: "Backend" }
+    const catId = s.category?.id ?? "other";
+    if (!groups[catId]) groups[catId] = [];
+    groups[catId].push(s);
   }
   return groups;
 }
@@ -372,8 +366,14 @@ function formatDate(dateStr) {
 
 /* ---------------- Skills ---------------- */
 
-function SkillsSection({ skills }) {
+function SkillsSection({ skills, categories }) {
   const grouped = groupSkills(skills);
+
+  // دسته‌بندی‌هایی که حداقل یه skill دارن، به ترتیب API
+  const activeCats = categories.filter((cat) => grouped[cat.id]?.length);
+
+  // skillهایی که category ندارن (null) رو جداگانه نشون میده
+  const uncategorized = grouped["other"] || [];
 
   return (
     <section id="skills" className="section">
@@ -383,11 +383,11 @@ function SkillsSection({ skills }) {
         <p className="empty-state">Skills coming soon.</p>
       ) : (
         <div className="skills-grid">
-          {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length).map((cat) => (
-            <div className="skill-group" key={cat}>
-              <h3 className="skill-group-title">{CATEGORY_LABELS[cat] || cat}</h3>
+          {activeCats.map((cat) => (
+            <div className="skill-group" key={cat.id}>
+              <h3 className="skill-group-title">{cat.name}</h3>
               <div className="skill-list">
-                {grouped[cat].map((s) => (
+                {grouped[cat.id].map((s) => (
                   <div className="skill-row" key={s.id}>
                     <div className="skill-row-top">
                       <span className="skill-name">{s.name}</span>
@@ -404,6 +404,28 @@ function SkillsSection({ skills }) {
               </div>
             </div>
           ))}
+
+          {uncategorized.length > 0 && (
+            <div className="skill-group" key="other">
+              <h3 className="skill-group-title">other</h3>
+              <div className="skill-list">
+                {uncategorized.map((s) => (
+                  <div className="skill-row" key={s.id}>
+                    <div className="skill-row-top">
+                      <span className="skill-name">{s.name}</span>
+                      <span className="skill-level">{s.level}%</span>
+                    </div>
+                    <div className="skill-bar">
+                      <div
+                        className="skill-bar-fill"
+                        style={{ width: `${Math.min(Math.max(s.level, 0), 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>

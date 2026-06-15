@@ -67,9 +67,10 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # CORS — فقط در development لازمه
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite dev server
-]
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:5173"
+).split(",")
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -83,3 +84,17 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API سایت شخصی',
     'VERSION': '1.0.0',
 }
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+# این خط را اضافه کنید تا آدرس لیارا هم خودکار اضافه شود
+if not DEBUG:
+    ALLOWED_HOSTS.append('*')  # یا آدرس دقیق دامنه لیارا
+WSGI_APPLICATION = "core.wsgi.application"

@@ -30,23 +30,30 @@ class Education(models.Model):
     def __str__(self):
         return f"{self.degree} — {self.university}"
 
+class Category(models.Model):
+    name = models.CharField(max_length=100)
 
+    class Meta:
+        ordering = ['name']  # ← اضافه کن
+
+    def __str__(self):
+        return self.name
 class Skill(models.Model):
-    CATEGORIES = [
-        ('backend', 'Backend'),
-        ('frontend', 'Frontend'),
-        ('devops', 'DevOps'),
-        ('Hardware', 'Hardware'),
-        ('ML' , 'Machine Learning'),
-        ('AI', 'Artificial Intelligence'),
-        ('DL', 'Deep Learning'),
-        ('embedded', 'Embedded Systems'),
-        ('other', 'Other'),
+    # CATEGORIES = [
+    #     ('backend', 'Backend'),
+    #     ('frontend', 'Frontend'),
+    #     ('devops', 'DevOps'),
+    #     ('Hardware', 'Hardware'),
+    #     ('ML' , 'Machine Learning'),
+    #     ('AI', 'Artificial Intelligence'),
+    #     ('DL', 'Deep Learning'),
+    #     ('embedded', 'Embedded Systems'),
+    #     ('other', 'Other'),
         
-    ]
+    # ]
     name = models.CharField(max_length=100)
     level = models.IntegerField(default=80)          # 0-100
-    category = models.CharField(max_length=50, choices=CATEGORIES)
+    category = models.ForeignKey(Category , on_delete=models.SET_NULL , default=None , null=True)
     order = models.IntegerField(default=0)
 
     class Meta:
@@ -54,6 +61,7 @@ class Skill(models.Model):
 
     def __str__(self):
         return self.name
+
 
 
 class Project(models.Model):

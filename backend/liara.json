@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/liara.json",
+  "platform": "django",
+  "app": "portfolio-api2",
+  "django": {
+    "wsgiApp": "core.wsgi:application",
+    "settingsModule": "core.settings",
+    "buildCommand": "python manage.py collectstatic --noinput",
+    "runCommand": "python manage.py migrate"
+  }
+}
