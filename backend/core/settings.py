@@ -1,17 +1,31 @@
 from decouple import config
 from pathlib import Path
+from urllib.parse import urlparse
 import os
-import sys
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def csv_config(name, default=""):
+    return [item.strip() for item in config(name, default=default).split(",") if item.strip()]
+
+
+def with_https(value):
+    if not value:
+        return ""
+    value = value.strip().rstrip("/")
+    if value.startswith(("http://", "https://")):
+        return value
+    return f"https://{value}"
+
 
 SECRET_KEY = config('SECRET_KEY', default='dev-secret-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config(
+ALLOWED_HOSTS = csv_config(
     'ALLOWED_HOSTS',
-    default='localhost,127.0.0.1'
-).split(',')
+    default='localhost,127.0.0.1,.liara.run'
+)
 
 # =========================
 # Apps
@@ -38,7 +52,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # باید قبل از CommonMiddleware باشه ✅
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -70,72 +84,78 @@ TEMPLATES = [{
 # =========================
 # Database
 # =========================
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='portfolio'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+DATABASE_URL = config('DATABASE_URL', default='')
+
+if DATABASE_URL:
+    parsed_db = urlparse(DATABASE_URL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed_db.path.lstrip('/') or 'postgres',
+            'USER': parsed_db.username or '',
+            'PASSWORD': parsed_db.password or '',
+            'HOST': parsed_db.hostname or 'localhost',
+            'PORT': str(parsed_db.port or 5432),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='portfolio'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
 
 # =========================
 # Static files
 # =========================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 # =========================
 # S3 / Liara Object Storage
 # =========================
-AWS_ACCESS_KEY_ID = os.environ.get("LIARA_ACCESS_KEY", "")
-AWS_SECRET_ACCESS_KEY = os.environ.get("LIARA_SECRET_KEY", "")
-AWS_STORAGE_BUCKET_NAME = os.environ.get("LIARA_BUCKET_NAME", "")
-AWS_S3_ENDPOINT_URL = os.environ.get("LIARA_ENDPOINT", "")
+AWS_ACCESS_KEY_ID = config("LIARA_ACCESS_KEY", default="")
+AWS_SECRET_ACCESS_KEY = config("LIARA_SECRET_KEY", default="")
+AWS_STORAGE_BUCKET_NAME = config("LIARA_BUCKET_NAME", default=config("BUCKET_NAME", default=""))
+AWS_S3_ENDPOINT_URL = with_https(config("LIARA_ENDPOINT_URL", default=config("LIARA_ENDPOINT", default="")))
+LIARA_PUBLIC_MEDIA_URL = with_https(config("LIARA_PUBLIC_MEDIA_URL", default=""))
 
-# اگه endpoint بدون https بود، اضافه می‌کنیم
-if AWS_S3_ENDPOINT_URL and not AWS_S3_ENDPOINT_URL.startswith("http"):
-    AWS_S3_ENDPOINT_URL = "https://" + AWS_S3_ENDPOINT_URL
-
-AWS_QUERYSTRING_AUTH = False          # URL های عمومی بدون signature
-AWS_DEFAULT_ACL = "public-read"       # 🔥 FIX: عکس‌ها باید public باشن
+AWS_QUERYSTRING_AUTH = False
+AWS_DEFAULT_ACL = "public-read"
 AWS_S3_FILE_OVERWRITE = False
 AWS_S3_REGION_NAME = "us-east-1"
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=86400"}
 
-# 🔥 FIX اصلی: تعریف custom domain برای URL درست عکس‌ها
-# فرمت لیارا: storage.iran.liara.space/BUCKET_NAME
 _endpoint_host = AWS_S3_ENDPOINT_URL.replace("https://", "").replace("http://", "") if AWS_S3_ENDPOINT_URL else ""
-AWS_S3_CUSTOM_DOMAIN = f"{_endpoint_host}/{AWS_STORAGE_BUCKET_NAME}" if _endpoint_host and AWS_STORAGE_BUCKET_NAME else ""
-
-# 🔥 FIX: MEDIA_URL باید به S3 اشاره کنه، نه /media/
+AWS_S3_CUSTOM_DOMAIN = (
+    LIARA_PUBLIC_MEDIA_URL.replace("https://", "").replace("http://", "").rstrip("/")
+    if LIARA_PUBLIC_MEDIA_URL
+    else f"{_endpoint_host}/{AWS_STORAGE_BUCKET_NAME}"
+    if _endpoint_host and AWS_STORAGE_BUCKET_NAME
+    else ""
+)
 MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/" if AWS_S3_CUSTOM_DOMAIN else "/media/"
 
 # =========================
-# CORS
+# CORS / CSRF
 # =========================
-CORS_ALLOWED_ORIGINS = config(
+CORS_ALLOWED_ORIGINS = csv_config(
     "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:5173"
-).split(",")
-
-# 🔥 FIX: اجازه دادن به مرورگر برای خوندن هدرهای S3
+    default="http://localhost:5173,https://arminweb.liara.run"
+)
+CSRF_TRUSTED_ORIGINS = csv_config(
+    "CSRF_TRUSTED_ORIGINS",
+    default="https://*.liara.run,http://localhost:5173,http://127.0.0.1:5173"
+)
 CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
 
 # =========================
 # DRF
@@ -164,7 +184,7 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # =========================
-# STORAGE BACKENDS
+# Storage backends
 # =========================
 STORAGES = {
     "default": {
@@ -176,16 +196,7 @@ STORAGES = {
 }
 
 # =========================
-# Prevent OOM (admin upload fix)
+# Upload limits
 # =========================
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024   # 5MB
-
-# =========================
-# Prevent collectstatic crash on Liara
-# =========================
-if "collectstatic" in sys.argv:
-    AWS_ACCESS_KEY_ID = ""
-    AWS_SECRET_ACCESS_KEY = ""
-    AWS_STORAGE_BUCKET_NAME = ""
-    AWS_S3_ENDPOINT_URL = ""
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

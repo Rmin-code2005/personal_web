@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import "./index.css";
 
-const API = import.meta.env.VITE_API_URL;
-const MEDIA_BASE = import.meta.env.VITE_MEDIA_URL ?? import.meta.env.VITE_API_URL;
+const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
+const MEDIA_BASE = (import.meta.env.VITE_MEDIA_URL || API).replace(/\/$/, "");
 
 // 🟢 اصلاح شد: هوشمندسازی تابع برای جلوگیری از تکرار پوشه media/media/
 function resolveImageUrl(url) {
@@ -35,11 +35,11 @@ export default function App() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/profile/`).then((r) => r.json()),
-      fetch(`${API}/projects/`).then((r) => r.json()),
-      fetch(`${API}/skills/`).then((r) => r.json()),
-      fetch(`${API}/education/`).then((r) => r.json()),
-      fetch(`${API}/categories/`).then((r) => r.json()),
+      fetchJson(`${API}/profile/`),
+      fetchJson(`${API}/projects/`),
+      fetchJson(`${API}/skills/`),
+      fetchJson(`${API}/education/`),
+      fetchJson(`${API}/categories/`),
     ])
       .then(([p, pr, s, e, cats]) => {
         setProfile(p);
@@ -113,6 +113,14 @@ $ ${API}`}
 }
 
 /* ---------------- helpers ---------------- */
+
+async function fetchJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${url} returned ${response.status}`);
+  }
+  return response.json();
+}
 
 function sortProjects(list) {
   return [...list].sort((a, b) => {
@@ -314,8 +322,9 @@ function ProjectsSection({ projects, allProjects, filter, setFilter }) {
 }
 
 function ProjectCard({ project }) {
-  const tags = String(project.tech_list || project.tech_stack || "")
-    .split(",")
+  const tags = (Array.isArray(project.tech_list)
+    ? project.tech_list
+    : String(project.tech_stack || "").split(","))
     .map((t) => t.trim())
     .filter(Boolean);
 
