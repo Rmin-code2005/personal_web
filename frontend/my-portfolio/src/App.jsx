@@ -2,11 +2,24 @@ import { useEffect, useState } from "react";
 import "./index.css";
 
 const API = import.meta.env.VITE_API_URL;
-const MEDIA_BASE = import.meta.env.VITE_API_URL;
+const MEDIA_BASE = import.meta.env.VITE_MEDIA_URL ?? import.meta.env.VITE_API_URL;
+
+// 🟢 اصلاح شد: هوشمندسازی تابع برای جلوگیری از تکرار پوشه media/media/
 function resolveImageUrl(url) {
   if (!url) return null;
   if (/^https?:\/\//i.test(url)) return url;
-  return `${MEDIA_BASE}${url.startsWith("/") ? "" : "/"}${url}`;
+
+  let cleanUrl = url;
+  // اگر آدرس فایل از بک‌اند با media/ شروع شده و دامین اصلی هم خودش شامل media/ هست، تکرار اول را پاک کن
+  if (cleanUrl.startsWith("media/") && MEDIA_BASE.endsWith("media/")) {
+    cleanUrl = cleanUrl.replace("media/", "");
+  }
+
+  // تمیزکاری اسلش‌های ابتدا و انتها برای ساختن یک URL استاندارد
+  const base = MEDIA_BASE.endsWith("/") ? MEDIA_BASE : `${MEDIA_BASE}/`;
+  const path = cleanUrl.startsWith("/") ? cleanUrl.slice(1) : cleanUrl;
+
+  return `${base}${path}`;
 }
 
 export default function App() {
@@ -122,7 +135,6 @@ function sortEducation(list) {
 function groupSkills(skills) {
   const groups = {};
   for (const s of skills) {
-    // category الان یه object هست: { id: 1, name: "Backend" }
     const catId = s.category?.id ?? "other";
     if (!groups[catId]) groups[catId] = [];
     groups[catId].push(s);
@@ -368,11 +380,7 @@ function formatDate(dateStr) {
 
 function SkillsSection({ skills, categories }) {
   const grouped = groupSkills(skills);
-
-  // دسته‌بندی‌هایی که حداقل یه skill دارن، به ترتیب API
   const activeCats = categories.filter((cat) => grouped[cat.id]?.length);
-
-  // skillهایی که category ندارن (null) رو جداگانه نشون میده
   const uncategorized = grouped["other"] || [];
 
   return (
