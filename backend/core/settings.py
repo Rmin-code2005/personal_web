@@ -23,8 +23,8 @@ SECRET_KEY = config('SECRET_KEY', default='dev-secret-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = csv_config(
-    'ALLOWED_HOSTS',
-    default='localhost,127.0.0.1,.liara.run'
+    "ALLOWED_HOSTS",
+    default="localhost,127.0.0.1,.liara.run,api.arminghajari.ir"
 )
 
 # =========================
@@ -149,13 +149,26 @@ MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/" if AWS_S3_CUSTOM_DOMAIN else "/me
 # =========================
 CORS_ALLOWED_ORIGINS = csv_config(
     "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:5173,https://arminweb.liara.run"
+    default="""
+http://localhost:5173,
+http://127.0.0.1:5173,
+https://arminghajari.ir,
+https://www.arminghajari.ir
+"""
 )
+
 CSRF_TRUSTED_ORIGINS = csv_config(
     "CSRF_TRUSTED_ORIGINS",
-    default="https://*.liara.run,http://localhost:5173,http://127.0.0.1:5173"
+    default="""
+https://arminghajari.ir,
+https://www.arminghajari.ir,
+https://api.arminghajari.ir,
+https://*.liara.run,
+http://localhost:5173,
+http://127.0.0.1:5173
+"""
 )
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 
 # =========================
 # DRF
@@ -177,12 +190,15 @@ SPECTACULAR_SETTINGS = {
 # Security
 # =========================
 if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
+    SECURE_SSL_REDIRECT = True
+
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-
 # =========================
 # Storage backends
 # =========================
