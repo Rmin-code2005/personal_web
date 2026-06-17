@@ -50,9 +50,9 @@ INSTALLED_APPS = [
 # Middleware
 # =========================
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',          # ← باید اول باشه
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -168,7 +168,7 @@ http://localhost:5173,
 http://127.0.0.1:5173
 """
 )
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False  # هیچ‌وقت True نذار روی production
 
 # =========================
 # DRF
