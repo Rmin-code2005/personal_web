@@ -173,6 +173,9 @@ CORS_ALLOW_ALL_ORIGINS = False  # هیچ‌وقت True نذار روی productio
 # =========================
 # DRF
 # =========================
+# =========================
+# DRF
+# =========================
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PERMISSION_CLASSES': [
@@ -184,6 +187,7 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'Personal Portfolio API',
     'DESCRIPTION': 'API سایت شخصی',
     'VERSION': '1.0.0',
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAdminUser'],
 }
 
 # =========================
